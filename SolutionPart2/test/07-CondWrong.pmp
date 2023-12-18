@@ -1,0 +1,4 @@
+begin
+  while {x = 1 do
+    a := x
+end

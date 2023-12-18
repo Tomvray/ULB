@@ -1,0 +1,6 @@
+begin
+  while 0 < 1 do
+    while 1 < 2 do
+      while 2 < 3 do
+        w := 3
+end

@@ -1,0 +1,12 @@
+begin
+  begin
+    x := 0 ...
+    begin
+      y := 1 ...
+      begin
+        z := 3
+      end
+    end
+  end ...
+  x := 4
+end
