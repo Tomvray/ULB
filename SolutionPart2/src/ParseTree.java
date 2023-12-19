@@ -15,12 +15,12 @@ public class ParseTree {
     /**
      * The label of the root of the tree.
      */
-    private Symbol label;
+    public Symbol label;
     
     /**
      * The list of childrens of the root node, which are trees themselves.
      */
-    private List<ParseTree> children;
+    public List<ParseTree> children;
 
     /**
      * Creates a singleton tree with only a root labeled by lbl.
@@ -81,6 +81,22 @@ public class ParseTree {
     public ParseTree(NonTerminal lbl, List<ParseTree> chdn) {
         this.label = new Symbol(null,lbl);
         this.children = chdn;
+    }
+
+    /**
+     * 
+     * @return
+     */
+    public ParseTree getChild(int child){
+        return (children.get(child));
+    }
+
+    /**
+     * 
+     * @return
+     */
+    public Object getChildValue(int child){
+        return (children.get(child).label.getValue());
     }
 
     /* Pure LaTeX version (using the forest package) */

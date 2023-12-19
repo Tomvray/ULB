@@ -73,6 +73,8 @@ public class Main{
             if (fullOutput) {parser.displayFullRules();}
             try {
                 parseTree = parser.parse();
+                llvmPrinter llvm = new llvmPrinter(parseTree);
+                llvm.generatellvm();
                 if (writeTree) {tex=parseTree.toLaTeX();};
             } catch (ParseException e) {
                 System.out.println("Error:> " + e.getMessage());
