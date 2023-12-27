@@ -33,9 +33,10 @@ public class llvmPrinter{
     private void printCode(ParseTree pT){
         System.out.println("printcode");
         System.out.println(pT.children.get(0).label);
-
+        // [3] <Code>  ->  EPSILON
         if (pT.label.getType() == LexicalUnit.EPSILON)
             return ;
+        // [2] <Code>  ->  <InstList>
         else
             printinstructionList(pT.children.get(0));
     
@@ -44,15 +45,16 @@ public class llvmPrinter{
     private void printinstructionList(ParseTree pT){
         System.out.println(pT.children.get(0).label.getValue());
         System.out.println(pT.children.get(1).label.getValue());
-
+        // [4] <InstList>  ->  <Instruction><InstListTail>
         printInstruction(pT.children.get(0));
         printInlistTail(pT.children.get(1));
     }
 
     private void printInstruction(ParseTree pT){
         //toprint += "instruction";
-        switch (pT.children.get(0).label.getValue()) {
-            case NonTerminal.Assign:
+        switch ((NonTerminal) pT.children.get(0).label.getValue()) {
+            // [7] <Instruction>  ->  <Assign>
+            case Assign:
                 printAssign(pT.children.get(0));
             default:
                 ;
@@ -85,10 +87,10 @@ public class llvmPrinter{
         }
 
         private void printExprArithPrime(ParseTree pT){
-            switch (pT.getChildValue(0)) {
-                case LexicalUnit.PLUS:
+            switch ((LexicalUnit) pT.getChildValue(0)) {
+                case PLUS:
                     toprint += "+";
-                case LexicalUnit.MINUS:
+                case MINUS:
 
                 default :
             }  
