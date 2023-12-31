@@ -61,6 +61,17 @@ public class llvmPrinter{
             case Assign:
                 printAssign(pT.children.get(0));
                 break;
+             // [8] <Instruction>  ->  <If>
+            case If:
+            // [9] <Instruction>  ->  <While>
+            case While:
+             // [10] <Instruction>  ->  <Print>
+            case Print:
+                    printPrint(pT.children.get(0))
+            // [11] <Instruction>  ->  <Read>
+            case Read:
+            // [12] <Instruction>  ->  begin <InstList> end
+            case Instruction:
             default:
                 ;
         }
@@ -112,9 +123,7 @@ public class llvmPrinter{
             switch ((LexicalUnit) pT.getChild(0).label.getType()) {
                 // [15] <ExprArith'>  ->  + <Prod> <ExprArith'>
                 case PLUS:
-                    System.out.println("ici1");
                     printProd(pT.getChild(1));
-                    System.out.println("ici2");
                     printExprArithPrime(pT.getChild(2));
                     toprint += "%" + counter + " = add i32 %" + ante + ", %" + (counter - 1) + "\n";
                     counter ++;
@@ -158,7 +167,7 @@ public class llvmPrinter{
                 return ;
             // [25] <Atom>  ->  [Number]
             case NUMBER:
-                toprint += "%" + counter + " = i32 " + pT.children.get(0).label.getValue() + "\n";
+                toprint += "%" + counter + " = add i32 0, " + pT.children.get(0).label.getValue() + "\n";
                 counter++;
                 return ;
             default:
@@ -188,5 +197,16 @@ public class llvmPrinter{
                     return ;
                 }  
             
+        }
+
+        private void printIfExpr(ParseTree pT){
+
+        }
+
+        private void printPrint(ParseTree pT){
+            // [40] <Print>  ->  print([VarName])
+            toprint += "%" + counter + " = load i32, i32* " + pT.children.get(2).label.getValue() + " \n"
+            toprint += "  call void @println(i32 %" + counter + ")\n"
+            counter++
         }
 }
