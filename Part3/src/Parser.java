@@ -41,6 +41,14 @@ public class Parser{
      */
     private int v_counter = 0;
     /**
+     * boolean that indicates if the print function has been used
+     */
+    private boolean print = false;
+    /**
+     * boolean that indicates if the read function has been used
+     */
+    private boolean read = false;
+    /**
      * variable table containing variables that have been assigned before
      */
     List<String> varTable = new ArrayList<>();
@@ -81,7 +89,6 @@ public class Parser{
     }
     private void addVar(String var){
         if (!varTable.contains(var)){
-            entry_str += "%" + var + "  = alloca i32\n";
             varTable.add(var);
         }
     }
@@ -93,7 +100,7 @@ public class Parser{
                 v_counter++;
         }
         else{
-            throw new Error("error: use of undefined value x");
+            throw new Error("error: use of undefined value " + var);
         }
     }
     /**
@@ -165,7 +172,7 @@ public class Parser{
     
     /* Applying grammar rules */
     /**
-     * Parses the file.
+     * Parses the file and writes the llvm code on this standard output.
      * 
      * @return a ParseTree containing the parsed file structured by the grammar rules.
      * @throws IOException in case the lexing fails (syntax error).
@@ -173,13 +180,20 @@ public class Parser{
      */
     public ParseTree parse() throws IOException, ParseException{
         // Program is the initial symbol of the grammar
-        entry_str += "define i32 @main() {\nentry:\n";
         ParseTree pt = program();
         entry_str += "ret i32 0\n}";
-        //if (print)
-        //if (read)
+        if (print){
+            System.out.println("@.strP = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\ndefine void @println(i32 %x) #0 {\n%1 = alloca i32, align 4\nstore i32 %x, i32* %1, align 4\n%2 = load i32, i32* %1, align 4\n%3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.strP, i32 0, i32 0), i32 %2)\nret void\n}\ndeclare i32 @printf(i8*, ...) #1");
+        }
+        if (read){
+            System.out.println("@.strR = private unnamed_addr constant [3 x i8] c\"%d\\00\", align 1\ndefine i32 @readInt() #0 {\n%1 = alloca i32, align 4\n%2 = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.strR, i32 0, i32 0), i32* %1)\n%3 = load i32, i32* %1, align 4\nret i32 %3\n}\n\ndeclare i32 @scanf(i8*, ...) #1");
+        }
+        System.out.println("define i32 @main() {\nentry:\n");
+        for (String var : varTable)
+        {
+            System.out.println("%" + var + "  = alloca i32\n");
+        }
         System.out.println(entry_str);
-        //if (!this.fullRuleDisplay) {System.out.println();} // New line at the end of list of rules
         return pt;
     }
     
@@ -638,17 +652,19 @@ public class Parser{
     private ParseTree ifExpr() throws IOException, ParseException{
         // [26] <If>  -> if <Cond> then <Instruction> else <IfTail>
         ParseTree ifT, cond, then, instruction, elseT, iftail;
+        int label;
         
         ifT = match(LexicalUnit.IF);
         cond = cond();
-        entry_str += "br i1 %" + (v_counter - 1) + ", label %iftrue" + if_counter + ", label %iffalse" + if_counter + "\niftrue" + if_counter + ":\n";
+        label = if_counter;
+        entry_str += "br i1 %" + (v_counter - 1) + ", label %iftrue" + label + ", label %iffalse" + label + "\niftrue" + label + ":\n";
         if_counter++;
         then = match(LexicalUnit.THEN);
         instruction = instruction();
-        entry_str +="br label %endif" + (if_counter - 1) + "\niffalse" + (if_counter - 1) + ":\n";
+        entry_str +="br label %endif" + (label) + "\niffalse" + (label) + ":\n";
         elseT = match(LexicalUnit.ELSE);
         iftail = ifTail();
-        entry_str +="br label %endif" + (if_counter - 1) + "\nendif" + (if_counter - 1) + ":\n";
+        entry_str +="br label %endif" + (label) + "\nendif" + (label) + ":\n";
         return new ParseTree(NonTerminal.If, Arrays.asList(
             ifT, cond, then, instruction, elseT, iftail
         ));
@@ -969,6 +985,7 @@ public class Parser{
         ParseTree print, lpar, rpar, var;
 
         // [40] <Print>  ->  print([VarName])
+        this.print = true;
         print = match(LexicalUnit.PRINT);
         lpar = match(LexicalUnit.LPAREN);
         entry_str += "%" + v_counter + " = load i32, i32* %" + current.getValue() + " \n";
@@ -999,6 +1016,7 @@ public class Parser{
         // [41] <Read>  ->  read([VarName])
         ParseTree read, lpar, var, rpar;
 
+        this.read = true;
         read = match(LexicalUnit.READ);
         lpar = match(LexicalUnit.LPAREN);
         addVar((String) current.getValue());

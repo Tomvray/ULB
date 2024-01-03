@@ -1,4 +1,0 @@
-begin
-  while do
-    x := 4
-end

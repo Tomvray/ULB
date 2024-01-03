@@ -1,4 +1,6 @@
 begin
-  while {x = 1 or {y < 2}} and 3 < z do
-    a := x
+x:=0...
+  while {1 = 10 or {x < 2}} and 3 < 4 do
+    x := x + 1...
+    print(x)
 end

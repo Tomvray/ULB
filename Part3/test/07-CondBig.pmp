@@ -1,4 +1,8 @@
 begin
-  while {{{0 < x}} or {y < z}} do
-    a := x
+read(x)...
+while {{{100 < x}} or {10 < 1}} do
+  begin
+    x := x + 1...
+    print(x)
+  end
 end

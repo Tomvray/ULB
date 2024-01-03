@@ -1,6 +1,12 @@
 begin
-  while 0 < 1 do
-    while 1 < 2 do
-      while 2 < 3 do
-        w := 3
+  x:=-7...
+  y:=-1000...
+  while x < 1 do
+    begin
+      x := x + 1...
+      while y < 2 do
+        y := y + 1
+    end...
+    print(x)...
+    print(y)
 end
