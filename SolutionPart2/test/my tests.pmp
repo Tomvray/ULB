@@ -1,0 +1,8 @@
+begin
+  x:=3...
+  y:=0...
+  if 3 = 3 or 4 < 5 then 
+  print(x)
+  else print(y)
+
+end

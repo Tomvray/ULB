@@ -68,14 +68,7 @@ public class Parser{
      * @param full a boolean specifying whether to write only the rule number (false) or the full rule (true).
      */
     private static void ruleOutput(int rNum, String ruleLhs,String ruleRhs, boolean full) {
-        if (full) {
-            System.out.println("   ["+rNum+"]"+
-                multispace(1+log10ruleCard-String.valueOf(rNum).length())+ // Align left hand-sides regardless of number of digits in rule number
-                ruleLhs+multispace(2+widestNonTerm-ruleLhs.length())+ // Align right hand-sides regardless of length of the left hand-side
-                "→  "+ruleRhs);
-        } else {
-            System.out.print(rNum+" ");
-        }
+        return ;
     }
     
     /**

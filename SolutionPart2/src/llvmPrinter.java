@@ -1,5 +1,6 @@
 import java.util.Arrays;
-
+import java.util.ArrayList;
+import java.util.List;
 /**
  * llvm printer for PascalMaisPresque.
  * 
@@ -15,31 +16,46 @@ public class llvmPrinter{
      */
     private ParseTree pTree;
     
-    private String entry_str;
+    private String entry_str = "";
 
     private int if_counter = 0;
 
     private int while_counter = 0;
 
-    private int v_counter;
+    private int v_counter = 0;
+
+    List<String> varTable = new ArrayList<>();
 
     public llvmPrinter(ParseTree pTree){
         this.pTree = pTree;
-        entry_str = "";
-       v_counter = 0;
+    }
+
+    private void addVar(String var){
+        if (!varTable.contains(var)){
+            entry_str += "%" + var + "  = alloca i32\n";
+            varTable.add(var);
+        }
+    }
+
+    private void loadVar(String var)
+    {
+        if (varTable.contains(var)){
+                entry_str+= "%" + v_counter + " = load i32 , i32* %" + var + "\n";
+                v_counter++;
+        }
+        else{
+            throw new Error("error: use of undefined value x");
+        }
     }
 
     public void generatellvm(){
         entry_str += "define i32 @main() {\nentry:\n";
-        System.out.println(pTree.children.get(1).label);
         printCode(pTree.children.get(1));
         entry_str += "ret i32 0\n}";
         System.out.println(entry_str);
     }
 
     private void printCode(ParseTree pT){
-        System.out.println("printcode");
-        System.out.println(pT.children.get(0).label);
         // [3] <Code>  ->  EPSILON
         if (pT.label.getType() == LexicalUnit.EPSILON)
             return ;
@@ -50,16 +66,12 @@ public class llvmPrinter{
     }
 
     private void printinstructionList(ParseTree pT){
-        //System.out.println(pT.children.get(0).label.getValue());
-        //System.out.println(pT.children.get(1).label.getValue());
         // [4] <InstList>  ->  <Instruction><InstListTail>
         printInstruction(pT.children.get(0));
         printInlistTail(pT.children.get(1));
     }
 
     private void printInstruction(ParseTree pT){
-        //entry_str += "instruction";
-        System.out.println("Instruction :");
         // [12] <Instruction>  ->  begin <InstList> end
         if (pT.getChild(0).label.getType() == LexicalUnit.BEG){
             printinstructionList(pT.getChild(1));
@@ -93,7 +105,6 @@ public class llvmPrinter{
 
     private void printInlistTail(ParseTree pT){
         // [5] <InstListTail>  ->  ...<Instruction><InstListTail>
-        System.out.println("printInlistTail :");
         if (pT.children.size() == 3){
             printInstruction(pT.children.get(1));
             printInlistTail(pT.children.get(2));
@@ -104,35 +115,23 @@ public class llvmPrinter{
 
         }
         private void printAssign(ParseTree pT){
-            /*
-            entry_str += "%" + pT.children.get(0).label.getValue() + "  = alloca i32\n";
-            entry_str += "store i32 ";
-            printExprArith(pT.children.get(2));
-            entry_str += ", i32* %"+ pT.children.get(0).label.getValue() +"\n";
-             */
              // [13] <Assign>  ->  [Varname] := <ExprArith>
             printExprArith(pT.getChild(2));
-            entry_str += "%" + pT.children.get(0).label.getValue() + "  = alloca i32\n";
+            //entry_str += "%" + pT.children.get(0).label.getValue() + "  = alloca i32\n";
+            addVar((String) pT.children.get(0).label.getValue());
             entry_str += "store i32 %" + (v_counter - 1) +", i32* %"+  pT.children.get(0).label.getValue() + "\n";
         }
         
         private void printExprArith(ParseTree pT){
-            System.out.println("EXPArith :");
             // [14] <ExprArith>  ->  <Prod> <ExprArith'>
             printProd(pT.getChild(0));
             printExprArithPrime(pT.getChild(1));
-            //printAtom(pT.getChild(0).getChild(0));
-            //printProd(pT.children.get(0));
-            //printExprArithPrime(pT.children.get(1));
         }
 
         private void printExprArithPrime(ParseTree pT){
-            System.out.println("ExpArithPrime :");
-            System.out.println(pT.getChild(0).label.getType() == LexicalUnit.EPSILON);
             // [17] <ExprArith'>  ->  EPSILON
             if (pT.getChild(0).label.getType() == LexicalUnit.EPSILON)
                 return ;
-            System.out.println("ici0");
             int ante = v_counter - 1;
             switch ((LexicalUnit) pT.getChild(0).label.getType()) {
                 // [15] <ExprArith'>  ->  + <Prod> <ExprArith'>
@@ -156,7 +155,6 @@ public class llvmPrinter{
         }
 
         private void printProd(ParseTree pT){
-            System.out.println("Prod :");
             // [18] <Prod>  ->  <Atom> <Prod'>
             printAtom(pT.children.get(0));
             printProdPrime(pT.children.get(1));
@@ -176,8 +174,9 @@ public class llvmPrinter{
                 return ;
             // [24] <Atom>  ->  [VarName]
             case VARNAME:
-                entry_str+= "%" + v_counter + " = load i32 , i32* %" + pT.children.get(0).label.getValue() + "\n";
-                v_counter++;
+                //entry_str+= "%" + v_counter + " = load i32 , i32* %" + pT.children.get(0).label.getValue() + "\n";
+                //v_counter++;
+                loadVar((String) pT.children.get(0).label.getValue());
                 return ;
             // [25] <Atom>  ->  [Number]
             case NUMBER:
@@ -214,9 +213,6 @@ public class llvmPrinter{
         }
 
         private void printIf(ParseTree pT){
-                    System.out.println(pT.label.getValue());
-
-            System.out.println("IF");
             // [26] <If>  -> if <Cond> then <Instruction> else <IfTail>
             printCond(pT.getChild(1));
             entry_str += "br i1 %" + (v_counter - 1) + ", label %iftrue" + if_counter + ", label %iffalse" + if_counter + "\niftrue" + if_counter + ":\n";
@@ -228,28 +224,19 @@ public class llvmPrinter{
         }
 
     private void printCond(ParseTree pT){
-        System.out.println("COND:");
-                System.out.println(pT.label.getValue());
-
         // [29] <Cond>  -> <Conj> <Cond'>
         printConj(pT.getChild(0));
-        int ante = v_counter - 1;
         printCondP(pT.getChild(1));
-        //entry_str += "%" +v_counter + " = icmp slt i32 %" + ante + ", %" + (v_counter - 1) + "\n";
-        //v_counter++;
         return ;
     }
 
     private void printConj(ParseTree pT){
         // [32] <Conj>  -> <SimpleCond> <Conj'>
-        System.out.println("CONJ");
-        System.out.println(pT.label.getValue());
         printSimpleCond(pT.getChild(0));
         printConjP(pT.getChild(1));
     }
 
     private void printConjP(ParseTree pT){
-        System.out.println("CONJP");
         switch ((LexicalUnit) pT.getChild(0).label.getType()) {
             
             // [33] <Conj'>  ->  and <SimpleCond> <Conj'>
@@ -268,7 +255,6 @@ public class llvmPrinter{
 
     private void printSimpleCond(ParseTree pT){
         int ante;
-        System.out.println(pT.getChild(0).label.getValue());
             // [35] <SimpleCond>  ->  {<Cond>}
             if (pT.getChild(0).label.getType() == LexicalUnit.LBRACK){
                 printCond(pT.getChild(1));
@@ -280,7 +266,6 @@ public class llvmPrinter{
                 printExprArith(pT.children.get(0));
                 ante = v_counter - 1;
                 printExprArith(pT.getChild(2));
-                System.out.println("ICIICIC");
 
                 //equal
                 if (pT.getChild(1).getChild(0).label.getType() == LexicalUnit.EQUAL)
@@ -299,9 +284,6 @@ public class llvmPrinter{
     }
 
     private void printCondP(ParseTree pT){
-        System.out.println("CONDP");
-        System.out.println(pT.label.getValue());
-
         // [31] <Cond'>  ->  EPSILON
         if (pT.getChild(0).label.getType() == LexicalUnit.EPSILON)
         {
@@ -312,7 +294,7 @@ public class llvmPrinter{
             int ante = v_counter - 1;
             printConj(pT.getChild(1));
             printCondP(pT.getChild(2));
-            entry_str += "%" + v_counter + "= and i1 %" + ante + ", %" + (v_counter - 1) +"\n";
+            entry_str += "%" + v_counter + "= or i1 %" + ante + ", %" + (v_counter - 1) +"\n";
             v_counter++;
         }
     }
@@ -326,13 +308,13 @@ public class llvmPrinter{
     }
     private void printWhile(ParseTree pT){
         // [39] <While>  ->  while <Cond> do <Instruction>
-        entry_str += "br label %while.cond" + while_counter + "\nwhile.cond" + while_counter +":\n";
+        int label = while_counter;
+        entry_str += "br label %while.cond" + label + "\nwhile.cond" + label +":\n";
         printCond(pT.getChild(1));
-        entry_str += "br i1 %" + (v_counter - 1) + ", label %while.body"+ while_counter + ", label %while.end" + while_counter +"\nwhile.body" + while_counter + ":\n";
+        entry_str += "br i1 %" + (v_counter - 1) + ", label %while.body"+ label + ", label %while.end" + label +"\nwhile.body" + label + ":\n";
         while_counter++;
-        System.out.println(pT.getChild(2).label.getValue());
         printInstruction(pT.getChild(3));
-        entry_str += "br label %while.cond"+ (while_counter - 1) + "\nwhile.end"+ (while_counter - 1)+ ":\n";
+        entry_str += "br label %while.cond"+ label + "\nwhile.end"+ label+ ":\n";
 
 
     }
@@ -344,6 +326,11 @@ public class llvmPrinter{
         v_counter++;
     }
     private void printRead(ParseTree pT){
-        entry_str += "%" + pT.getChild(2).label.getValue() + " = call i32 @readInt()\n";
+        // [41] <Read>  ->  read([VarName])
+        //entry_str += "%" + pT.children.get(2).label.getValue() + "  = alloca i32\n";
+        addVar((String) pT.getChild(2).label.getValue());
+        entry_str += "%" + v_counter + " = call i32 @readInt()\n";
+        v_counter ++;
+        entry_str += "store i32 %" + (v_counter - 1) +", i32* %"+  pT.children.get(2).label.getValue() + "\n";
     }
 }
