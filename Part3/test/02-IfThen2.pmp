@@ -1,7 +1,0 @@
-begin
-  y:=3...
-  if 1 = 2 then
-    x := 0
-  else
-  print(y)
-end

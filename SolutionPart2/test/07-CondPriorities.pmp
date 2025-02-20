@@ -1,4 +1,0 @@
-begin
-  while x = 1 or y < 2 and 3 < z do
-    a := x
-end

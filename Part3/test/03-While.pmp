@@ -1,4 +1,0 @@
-begin
-  while 0 < 1 do
-    y := 1
-end

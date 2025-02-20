@@ -1,5 +1,0 @@
-begin
-  begin
-    z := 3
-  end
-end

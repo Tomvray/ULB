@@ -1,7 +1,0 @@
-begin
-  w:= 0...
-  while w < 1 do
-    while w < 2 do
-      while w < 3 do
-        w := 3
-end

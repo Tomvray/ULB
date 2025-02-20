@@ -1,5 +1,0 @@
-begin
-  x:=1...
-  if 0 = 0 or 1 = 0 and 1 = 1 then
-    print(x) else
-end

@@ -1,4 +1,0 @@
-begin
-  while {{{0 < x}} or {y < z}} do
-    a := x
-end

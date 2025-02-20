@@ -1,8 +1,0 @@
-begin
-read(x)...
-while {{{100 < x}} or {10 < 1}} do
-  begin
-    x := x + 1...
-    print(x)
-  end
-end
