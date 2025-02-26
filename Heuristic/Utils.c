@@ -27,10 +27,10 @@ int Read_Instance(char *path, Instance *inst)
     printf("n_machine: %d\n", n_machines);
     printf("n_job: %d\n", n_jobs);
 
-    int **jobs = (int **)malloc(n_jobs * sizeof(int *));
+    int **costs = (int **)malloc(n_jobs * sizeof(int *));
     for (int i = 0; i < n_jobs; i++)
     {
-        jobs[i] = (int *)malloc(256 * sizeof(int));
+        costs[i] = (int *)malloc(n_machines * sizeof(int));
     }
     int i = 0;
     while (fgets(line, sizeof(line), fp))
@@ -40,33 +40,31 @@ int Read_Instance(char *path, Instance *inst)
         int k = 0;
         while (token != NULL)
         {
-            jobs[i][k] = atoi(token);
-            k++;
             token = strtok(NULL, " ");
+            printf("token: %s\n", token);
+            if (token != NULL)
+                costs[i][k] = atoi(token);
+                token = strtok(NULL, " ");
+            k++;
         }
-        //jobs[i][k] = -1;
+        //costs[i][k] = -1;
         i++;
     }
 
-    printf("jobs: \n");
+    printf("costs: \n");
     i = 0;
     int k = 0;
     for (int i = 0; i < n_jobs; i++)
     {
         k = 0;
-        while (jobs[i][k] != 0)
+        while (costs[i][k] != 0)
         {
-            printf("%d ", jobs[i][k]);
+            printf("%d ", costs[i][k]);
             k++;
         }
         printf("\n");
 
     }
-    for (int i = 0; i < n_jobs; i++)
-    {
-        free(jobs[i]);
-    }
-    free(jobs);
     fclose(fp);
 
     if (inst == NULL)
@@ -76,8 +74,29 @@ int Read_Instance(char *path, Instance *inst)
     }
     inst->n_jobs = n_jobs;
     inst->n_machines = n_machines;
-    inst->jobs = jobs;
+    inst->costs = costs;
     return 0;
+}
+
+
+void    free_Instance(Instance *inst)
+{
+    for (int i = 0; i < inst->n_jobs; i++)
+    {
+        free(inst->costs[i]);
+    }
+    free(inst->costs);
+    free(inst);
+}
+
+int Cost(Instance *inst, int *premutation)
+{
+    int cost = 0;
+    for (int i = 0; i < inst->n_jobs; i++)
+    {
+        cost += inst->costs[i][premutation[i]];
+    }
+    return cost;
 }
 
 // int main()
