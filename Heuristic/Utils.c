@@ -41,7 +41,7 @@ int Read_Instance(char *path, Instance *inst)
         while (token != NULL)
         {
             token = strtok(NULL, " ");
-            printf("token: %s\n", token);
+            //printf("token: %s\n", token);
             if (token != NULL)
                 costs[i][k] = atoi(token);
                 token = strtok(NULL, " ");
@@ -51,20 +51,20 @@ int Read_Instance(char *path, Instance *inst)
         i++;
     }
 
-    printf("costs: \n");
-    i = 0;
-    int k = 0;
-    for (int i = 0; i < n_jobs; i++)
-    {
-        k = 0;
-        while (costs[i][k] != 0)
-        {
-            printf("%d ", costs[i][k]);
-            k++;
-        }
-        printf("\n");
+    //printf("costs: \n");
+    // i = 0;
+    // int k = 0;
+    // for (int i = 0; i < n_jobs; i++)
+    // {
+    //     k = 0;
+    //     while (costs[i][k] != 0)
+    //     {
+    //         printf("%d ", costs[i][k]);
+    //         k++;
+    //     }
+    //     printf("\n");
 
-    }
+    // }
     fclose(fp);
 
     if (inst == NULL)
