@@ -25,14 +25,14 @@ int *parse_command_line(int argc, char *argv[]) {
     //neighborhood
     if (!strcmp(argv[2], "--transpose"))
         modes[1] = 1;
-    else if (!strcmp(argv[2], "--echange"))
+    else if (!strcmp(argv[2], "--exchange"))
         modes[1] = 2;
     else if (!strcmp(argv[2], "--insert"))
         modes[1] = 3;
     else
         printf("Error: Invalid neighborhood\n");
     
-    //intitial solution
+    //initial solution
     if (!strcmp(argv[3],"--random-init"))
         modes[2] = 1;
     else if (!strcmp(argv[3], "--srz"))

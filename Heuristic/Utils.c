@@ -75,6 +75,21 @@ int Read_Instance(char *path, Instance *inst)
     inst->n_jobs = n_jobs;
     inst->n_machines = n_machines;
     inst->costs = costs;
+    inst->c_matrix = malloc(inst->n_jobs * sizeof(unsigned long int *));
+    if (inst->c_matrix == NULL)
+    {
+        printf("Error: c_matrix is NULL\n");
+        return 1;
+    }
+    for (int i = 0; i < inst->n_jobs; i++)
+    {
+        inst->c_matrix[i] = malloc(inst->n_machines * sizeof(unsigned long int));
+        if (inst->c_matrix[i] == NULL)
+        {
+            printf("Error: c_matrix[%d] is NULL\n", i);
+            return 1;
+        }
+    }
     return 0;
 }
 
@@ -84,8 +99,10 @@ void    free_Instance(Instance *inst)
     for (int i = 0; i < inst->n_jobs; i++)
     {
         free(inst->costs[i]);
+        free(inst->c_matrix[i]);
     }
     free(inst->costs);
+    free(inst->c_matrix);
     free(inst);
 }
 

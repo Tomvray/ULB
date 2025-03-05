@@ -65,62 +65,58 @@ void Initial_solution(int *permutation, Instance *inst, int *modes){
         ;
 }
 
-
 unsigned long int Complation_time(int *permutation, Instance *inst){
     unsigned long int cost = 0;
-    unsigned long int **c_matrix = malloc(inst->n_jobs * sizeof(unsigned long int *));
 
-    for (int i = 0; i < inst->n_jobs; i++)
-    {
-        c_matrix[i] = malloc(inst->n_machines * sizeof(unsigned long int));
-    }
-
-    c_matrix[permutation[0]][0] = inst->costs[permutation[0]][0];
+    inst->c_matrix[0][0] = inst->costs[permutation[0]][0];
     for (int i = 1; i < inst->n_machines; i++)
     {
-        c_matrix[permutation[0]][i] = inst->costs[permutation[0]][i] + c_matrix[permutation[0]][i - 1];
-        // c_matrix[0][i] = 0;
-        // for (int j = 0; j < i; j++)
-        // {
-        //     c_matrix[0][i] += inst->costs[permutation[0]][j];
-        // }
+        inst->c_matrix[0][i] = inst->costs[permutation[0]][i] + inst->c_matrix[0][i - 1];
     }
     for (int j = 1; j < inst->n_jobs; j++)
     {
-        c_matrix[permutation[j]][0] = inst->costs[permutation[j]][0] + c_matrix[permutation[j - 1]][0];
-        // c_matrix[j][0] = 0;
-        // for (int i = 0; i < j; i++)
-        // {
-        //     c_matrix[j][0] += inst->costs[permutation[i]][0];
-        // }
+        inst->c_matrix[j][0] = inst->costs[permutation[j]][0] + inst->c_matrix[j - 1][0];
     }
     for (int i = 1; i < inst->n_jobs; i++)
     {
         for (int j = 1; j < inst->n_machines; j++)
         {
-            c_matrix[permutation[i]][j] = max(c_matrix[permutation[i - 1]][j], c_matrix[permutation[i]][j - 1]) + inst->costs[permutation[i]][j];
+            inst->c_matrix[i][j] = max(inst->c_matrix[i - 1][j], inst->c_matrix[i][j - 1]) + inst->costs[permutation[i]][j];
         }
     }
     cost = 0;
     for (int i = 0; i < inst->n_jobs; i++)
     {
-        cost += c_matrix[permutation[i]][inst->n_machines - 1];
+        cost += inst->c_matrix[i][inst->n_machines - 1];
     }
-    // printf("Completion time matrix\n");
-    // for (int i = 0; i < inst->n_jobs; i++)
-    // {
-    //     for (int j = 0; j < inst->n_machines; j++)
-    //     {
-    //         printf("%lu\t", c_matrix[i][j]);
-    //     }
-    //     printf("\n");
-    // }
     return cost;
+}
+
+unsigned long int update_Cmatrix(Instance *inst, int start, int *permutation){
+    unsigned long int cost = 0;
+    unsigned long int **c_matrix = inst->c_matrix;
+    if (start == 0)
+        return Complation_time(permutation, inst);
+    for (int i = start; i < inst->n_jobs; i++)
+    {
+        c_matrix[i][0] = inst->costs[permutation[i]][0] + c_matrix[i - 1][0];
+    }
+    for (int j = start; j < inst->n_machines; j++)
+    {
+        c_matrix[0][j] = inst->costs[permutation[0]][j] + c_matrix[0][j - 1];
+    }
+    for (int i = start; i < inst->n_jobs; i++)
+    {
+        for (int j = start; j < inst->n_machines; j++)
+        {
+            c_matrix[i][j] = max(c_matrix[i - 1][j], c_matrix[i][j - 1]) + inst->costs[permutation[i]][j];
+        }
+    }
+    cost = 0;
     for (int i = 0; i < inst->n_jobs; i++)
     {
-        free(c_matrix[i]);
+        cost += c_matrix[i][inst->n_machines - 1];
     }
-    free(c_matrix);
     return cost;
 }
 
@@ -204,11 +200,179 @@ unsigned long int transpose(int *permutation, Instance *inst, int *modes){
             printf("best_cost = %lu\n", best_cost);
             printf("best cost from cost = %lu\n", Complation_time(permutation, inst));
             return current_cost;
-        }
+        }   
+}
 
+
+unsigned long int exchange(int *permutation, Instance *inst, int *modes){
+    unsigned long int best_cost;
+    unsigned long int current_cost;
+    unsigned long int new_cost;
+
+    int *new_permutation = (int *) malloc(inst->n_jobs * sizeof(int));
+    int *best_permutation = (int *) malloc(inst->n_jobs * sizeof(int));
+    static int count = 0;
+    count++;
+    printf("count = %d\n", count);
+
+    best_cost = Complation_time(permutation, inst);
+    current_cost = best_cost;
+
+    printf("best_cost = %lu\n", best_cost);
+
+    for (int i = 0; i < inst->n_jobs - 1; i++)
+    {
+        for (int j = i + 1; j < inst->n_jobs; j++)
+        {
+            new_permutation = memcpy(new_permutation, permutation, inst->n_jobs * sizeof(int));
         
-}	
+            check_permutation(new_permutation, inst->n_jobs);
+            check_permutation(permutation, inst->n_jobs);
+        
+            for (int i = 0; i < inst->n_jobs; i++)
+            {
+                if (new_permutation[i] != permutation[i])
+                {
+                    printf("Error: memcpy failed\n");
+                }
+            }
+            new_permutation[i] = permutation[j];
+            new_permutation[j] = permutation[i];
 
+            new_cost = Complation_time(new_permutation, inst);
+
+            if (new_cost < current_cost)
+            {
+                best_cost = new_cost;
+                best_permutation = memcpy(best_permutation, new_permutation, inst->n_jobs * sizeof(int));
+                if (modes[0] == 1)
+                {
+                    printf("index = %d\n", i);
+                    permutation = memcpy(permutation, best_permutation, inst->n_jobs * sizeof(int));
+                    free(new_permutation);
+                    free(best_permutation);
+                    return (exchange(permutation, inst, modes));
+                }
+            }
+        }
+    }
+    if (best_cost < current_cost)
+        {
+            permutation = memcpy(permutation, best_permutation, inst->n_jobs * sizeof(int));
+        }
+        free(new_permutation);
+        free(best_permutation);
+        if (best_cost < current_cost)
+        {
+            return (exchange(permutation, inst, modes));
+        }
+        else{
+            printf("best_cost = %lu\n", best_cost);
+            printf("best cost from cost = %lu\n", Complation_time(permutation, inst));
+            return current_cost;
+        }
+}
+
+
+unsigned long int insert(int *permutation, Instance *inst, int *modes){
+    unsigned long int best_cost;
+    unsigned long int current_cost;
+    unsigned long int new_cost;
+
+    int *new_permutation = (int *) malloc(inst->n_jobs * sizeof(int));
+    int *best_permutation = (int *) malloc(inst->n_jobs * sizeof(int));
+    static int count = 0;
+    count++;
+    printf("count = %d\n", count);
+
+    best_cost = Complation_time(permutation, inst);
+    current_cost = best_cost;
+
+    printf("best_cost = %lu\n", best_cost);
+
+    for (int i = 0; i < inst->n_jobs - 1; i++)
+    {
+        for (int j = i + 1; j < inst->n_jobs; j++)
+        {
+            new_permutation = memcpy(new_permutation, permutation, inst->n_jobs * sizeof(int));
+        
+            check_permutation(new_permutation, inst->n_jobs);
+            check_permutation(permutation, inst->n_jobs);
+        
+            for (int i = 0; i < inst->n_jobs; i++)
+            {
+                if (new_permutation[i] != permutation[i])
+                {
+                    printf("Error: memcpy failed\n");
+                }
+            }
+            for (int k = i; k < j; k++)
+            {
+                new_permutation[k] = permutation[k + 1];
+            }
+            new_permutation[j] = permutation[i];
+
+            new_cost = Complation_time(new_permutation, inst);
+
+            if (new_cost < current_cost)
+            {
+                best_cost = new_cost;
+                best_permutation = memcpy(best_permutation, new_permutation, inst->n_jobs * sizeof(int));
+                if (modes[0] == 1)
+                {
+                    printf("index = %d\n", i);
+                    permutation = memcpy(permutation, best_permutation, inst->n_jobs * sizeof(int));
+                    free(new_permutation);
+                    free(best_permutation);
+                    return (insert(permutation, inst, modes));
+                }
+            }
+        }
+    }
+    if (best_cost < current_cost)
+        {
+            permutation = memcpy(permutation, best_permutation, inst->n_jobs * sizeof(int));
+        }
+        free(new_permutation);
+        free(best_permutation);
+        if (best_cost < current_cost)
+        {
+            return (insert(permutation, inst, modes));
+        }
+        else{
+            printf("best_cost = %lu\n", best_cost);
+            printf("best cost from cost = %lu\n", Complation_time(permutation, inst));
+            return current_cost;
+        }
+}
+
+
+unsigned long int VND1(int * permutation, Instance *inst, int *modes){
+    unsigned long int cost;
+
+
+    cost = transpose(permutation, inst, modes);
+    printf("cost after transpose = %ld\n", cost);
+    cost = exchange(permutation, inst, modes);
+    printf("cost after exchange = %ld\n", cost);
+    cost = insert(permutation, inst, modes);
+    printf("cost after insert = %ld\n", cost);
+
+    return cost;
+
+}
+
+unsigned long int VND2(int * permutation, Instance *inst, int *modes){
+    unsigned long int cost;
+
+    cost = transpose(permutation, inst, modes);
+    printf("cost after transpose = %ld\n", cost);
+    cost = insert(permutation, inst, modes);
+    printf("cost after insert = %ld\n", cost);
+    cost = exchange(permutation, inst, modes);
+    printf("cost after exchange = %ld\n", cost);
+    return cost;
+}
 
 void Iterative_algo(Instance *inst, int *modes){
     
@@ -217,20 +381,22 @@ void Iterative_algo(Instance *inst, int *modes){
 
     Initial_solution(permutation, inst, modes);
 
+    VND1(permutation, inst, modes);
+    return;
+
     if (modes[1] == 1){
         printf("best_cost = %ld\n", transpose(permutation, inst, modes));
     }
     else if (modes[1] == 2){
-        //exchange(inst, permutation, modes);
+        exchange(permutation, inst, modes);
     }
     else if (modes[1] == 3){
-        // insert(inst, permutation, modes);
+        insert(permutation, inst, modes);
     }
     else
-        printf("Error: Invalid neighborhood\n");
+        printf("Error: Invalid neighborhood rule\n");
     free(permutation);
 }
-
 
 // int main(){
 //     Instance *inst = (Instance *) malloc(sizeof(Instance));
