@@ -43,8 +43,10 @@ int Read_Instance(char *path, Instance *inst)
             token = strtok(NULL, " ");
             //printf("token: %s\n", token);
             if (token != NULL)
+            {
                 costs[i][k] = atoi(token);
                 token = strtok(NULL, " ");
+            }
             k++;
         }
         //costs[i][k] = -1;

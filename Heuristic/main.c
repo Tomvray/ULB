@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void Iterative_algo(Instance *inst, int *modes);
+unsigned long int Iterative_algo(Instance *inst, int *modes);
 
 int *parse_command_line(int argc, char *argv[]) {
     int *modes;
@@ -42,15 +42,45 @@ int *parse_command_line(int argc, char *argv[]) {
     return modes;
 }
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <string.h>
+
+void read_files_from_directory(const char *dirname, Instance *inst, int *modes) {
+    struct dirent *entry;
+    DIR *dir = opendir(dirname);
+
+    if (!dir) {
+        printf("Error: Could not open directory %s\n", dirname);
+        return;
+    }
+
+    char filepath[512];
+    FILE *file;
+    char line[256];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {  // Only process regular files
+            snprintf(filepath, sizeof(filepath), "%s/%s", dirname, entry->d_name);
+            printf("\nReading file: %s\n", filepath); 
+            Read_Instance(filepath, inst);
+            free_Instance(inst);
+            printf("best_cost = %ld\n", Iterative_algo(inst, modes));
+        }
+    }
+
+    closedir(dir);
+}
 int main(int argc, char *argv[])
 {
     int *modes = parse_command_line(argc, argv);
     
     Instance *inst = (Instance *) malloc(sizeof(Instance));
-    Read_Instance("instances/Benchmarks/ta051", inst);
-    printf("n_machine: %d\n", inst->n_machines);
-    Iterative_algo(inst, modes);
-    free_Instance(inst);
+    // Read_Instance("instances/Benchmarks/ta051", inst);
+    read_files_from_directory("instances/Benchmarks", inst, modes);
+
+    // free_Instance(inst);
     free(modes);
     return 0;
 }
