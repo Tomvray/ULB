@@ -59,7 +59,8 @@ function go_to_item()
         if item.distance < 40.0 then  -- Close enough to pick up
             robot.gripper.lock_positive()
 			log("grip")
-            robot.leds.set_all_colors("green")
+            
+			robot.leds.set_all_colors("green")
             item_picked = true
             current_state = STATE_CARRY_TO_NEST
         end
