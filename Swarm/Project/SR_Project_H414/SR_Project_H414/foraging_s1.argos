@@ -15,14 +15,13 @@
   <!-- ****************** -->
   <!-- * Loop functions * -->
   <!-- ****************** -->
-  <loop_functions label = "foraging">
+<loop_functions library="build/libforaging.so" label="foraging">
     <params min_cache_x = "3.0"
             max_cache_x = "3.35"
             min_cache_y = "-2.0"
             max_cache_y = "2.0"
             reset_all   = "true" />
-
-  </loop_functions>
+</loop_functions>
 
   <!-- *************** -->
   <!-- * Controllers * -->

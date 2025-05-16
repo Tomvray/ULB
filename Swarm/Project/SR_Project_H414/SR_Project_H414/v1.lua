@@ -7,7 +7,7 @@ local STATE_RETURN = "return"
 
 local MAX_SPEED = 10.0
 local NEST_THRESHOLD = 0.3  -- Threshold for detecting nest (darker grey)
-local ITEM_THRESHOLD = 0.4  -- Threshold for detecting items by color
+local ITEM_THRESHOLD = 0.1  -- Threshold for detecting items by color
 
 -- Variables
 local current_state = STATE_EXPLORE
@@ -24,11 +24,16 @@ function step()
     elseif current_state == STATE_GO_TO_ITEM then
         go_to_item()
     elseif current_state == STATE_CARRY_TO_NEST then
+        
         carry_to_nest()
     elseif current_state == STATE_DROP then
+        
         drop_item()
     elseif current_state == STATE_RETURN then
+        
         return_to_search()
+    else
+        logerr("STATE UNKNOWN")
     end
 end
 
@@ -38,7 +43,8 @@ end
 
 function explore()
     local item = get_item_blob()
-    if item then
+    if item ~= nill then
+        log("item found")
         current_state = STATE_GO_TO_ITEM
     else
         random_walk()
@@ -48,13 +54,17 @@ end
 function go_to_item()
     local item = get_item_blob()
     if item then
-        set_wheel_velocity_toward(item.angle)
-        if item.distance < 20.0 then  -- Close enough to pick up
-            robot.gripper.lock_grip()
+        set_wheel_velocity_toward(item.angle, item.distance)
+        log(item.distance)
+        if item.distance < 40.0 then  -- Close enough to pick up
+            robot.gripper.lock_positive()
+			log("grip")
+            robot.leds.set_all_colors("green")
             item_picked = true
             current_state = STATE_CARRY_TO_NEST
         end
     else
+        log("go back to explore")
         current_state = STATE_EXPLORE
     end
 end
@@ -68,7 +78,7 @@ function carry_to_nest()
         local light = robot.light
         if #light > 0 then
             local angle = weighted_vector_angle(light)
-            set_wheel_velocity_toward(angle)
+            set_wheel_velocity_toward(angle, MAX_SPEED + 2)
         else
             random_walk()
         end
@@ -104,7 +114,10 @@ function random_walk()
 end
 
 function get_item_blob()
+    robot.colored_blob_omnidirectional_camera.enable()
+    local closest_available_item = nil
     for _, blob in ipairs(robot.colored_blob_omnidirectional_camera) do
+        log("color red" .. blob.color.red)
         if blob.color.red > ITEM_THRESHOLD then
             return blob
         end
@@ -112,7 +125,11 @@ function get_item_blob()
     return nil
 end
 
-function set_wheel_velocity_toward(angle)
+function set_wheel_velocity_toward(angle, distance)
+    local speed = MAX_SPEED
+    if distance < MAX_SPEED then
+        speed = distance - 2
+    end
     local k = 0.5
     local left = MAX_SPEED * (1 - k * angle)
     local right = MAX_SPEED * (1 + k * angle)
