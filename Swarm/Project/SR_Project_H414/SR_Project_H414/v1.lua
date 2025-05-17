@@ -41,12 +41,34 @@ end
 -- STATE FUNCTIONS
 ------------------------------
 
+-- Helper: Check if another robot is claiming an item nearby
+function is_item_claimed()
+    for _, msg in ipairs(robot.range_and_bearing) do
+        if msg.data[1] == 1 then
+            return true
+        end
+    end
+    return false
+end
+
+-- Helper: Broadcast intent to pick up item
+function claim_item()
+    robot.range_and_bearing.set_data(1, 1) -- 1 means "I'm claiming an item"
+end
+
+-- Helper: Clear claim
+function clear_claim()
+    robot.range_and_bearing.clear_data()
+end
+
 function explore()
     local item = get_item_blob()
-    if item ~= nill then
+    if item ~= nil and not is_item_claimed() then
         log("item found")
+        claim_item()
         current_state = STATE_GO_TO_ITEM
     else
+        clear_claim()
         random_walk()
     end
 end
@@ -54,18 +76,20 @@ end
 function go_to_item()
     local item = get_item_blob()
     if item then
+        claim_item()
         set_wheel_velocity_toward(item.angle, item.distance)
         log(item.distance)
         if item.distance < 40.0 then  -- Close enough to pick up
             robot.gripper.lock_positive()
-			log("grip")
-            
-			robot.leds.set_all_colors("green")
+            log("grip")
+            robot.leds.set_all_colors("green")
             item_picked = true
+            clear_claim()
             current_state = STATE_CARRY_TO_NEST
         end
     else
         log("go back to explore")
+        clear_claim()
         current_state = STATE_EXPLORE
     end
 end
@@ -89,6 +113,7 @@ end
 function drop_item()
     robot.gripper.unlock()
     item_picked = false
+    clear_claim()
     current_state = STATE_RETURN
 end
 
