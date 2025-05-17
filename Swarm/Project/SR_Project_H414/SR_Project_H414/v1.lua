@@ -79,7 +79,7 @@ function go_to_item()
         claim_item()
         set_wheel_velocity_toward(item.angle, item.distance)
         log(item.distance)
-        if item.distance < 40.0 then  -- Close enough to pick up
+        if item.distance < 35.0 then  -- Close enough to pick up
             robot.gripper.lock_positive()
             log("grip")
             robot.leds.set_all_colors("green")
