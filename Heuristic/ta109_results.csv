@@ -1,0 +1,15 @@
+Algorithm,Mode1,Mode2,Mode3,Cost,Time
+Iterative_algo,1,1,1,1477156,1
+Iterative_algo,1,1,2,1307934,0
+Iterative_algo,1,2,1,1253106,150
+Iterative_algo,1,2,2,1270682,39
+Iterative_algo,1,3,1,1317900,138
+Iterative_algo,1,3,2,1282304,27
+Iterative_algo,2,1,1,1456994,2
+Iterative_algo,2,1,2,1308003,0
+Iterative_algo,2,2,1,1287141,1333
+Iterative_algo,2,2,2,1274201,141
+Iterative_algo,2,3,1,1324729,924
+Iterative_algo,2,3,2,1287065,123
+VND1,1,0,1,1258338,153
+VND1,1,0,2,1259268,48

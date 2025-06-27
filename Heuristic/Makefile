@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -g
 
 # Define the target executable
-TARGET = my_program
+TARGET = pfsp
 
 # Define the source files
 SRCS = main.c Utils.c Algorithms.c Initial_solution.c

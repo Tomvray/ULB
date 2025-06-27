@@ -86,12 +86,12 @@ void SRZ(int *permutation, Instance *inst){
         s_seq[k] = i;
     }
     //print init_seq
-    printf("init_seq: ");
-    for (int i = 0; i < inst->n_jobs; i++)
-    {
-        printf("%d %d\t", s_seq[i] + 1, T[s_seq[i]]);
-    }
-    printf("\n");
+    // printf("init_seq: ");
+    // for (int i = 0; i < inst->n_jobs; i++)
+    // {
+    //     printf("%d %d\t", s_seq[i] + 1, T[s_seq[i]]);
+    // }
+    // printf("\n");
     unsigned int best_cost = UINT_MAX;
     int *best_permutation = malloc(inst->n_jobs * sizeof(int));
 
@@ -99,18 +99,18 @@ void SRZ(int *permutation, Instance *inst){
     for (int i = 1; i < inst->n_jobs; i++)
     {
         //copy best_permutation to permutation
-        for (int j = 0; j <= i; j++)
+        for (int j = 0; j < i; j++)
             permutation[j + 1] = best_permutation[j];
         //insert s_seq[i] on firt position
         permutation[0] = s_seq[i];
 
         //print permutation
-        printf("permutation: ");
-        for (int j = 0; j <= i; j++)
-        {
-            printf("%d ", permutation[j] + 1);
-        }
-        printf("\n");
+        // printf("permutation: ");
+        // for (int j = 0; j <= i; j++)
+        // {
+        //     printf("%d ", permutation[j] + 1);
+        // }
+        // printf("\n");
     
         best_cost = UINT_MAX;
         
