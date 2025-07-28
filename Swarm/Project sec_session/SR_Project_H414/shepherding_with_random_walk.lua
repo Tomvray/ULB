@@ -146,86 +146,304 @@ function sheep_control()
 	end
 end
  
------Baseline behavior for the shepherd-------------------------------------------------
-EXPLORE = 1
-WALK_AWAY = 2
-shepherd_state = EXPLORE 
+-----Shepherd behavior implementation-------------------------------------------------
 
+-- Shepherd states
+EXPLORE = 1
+POSITION_BEHIND_SHEEP = 2
+HERD_SHEEP = 3
+AVOID_COLLISION = 4
+
+-- Configuration parameters
+SHEPHERD_MAX_SPEED = 15
+SHEEP_DETECTION_RANGE = 100  -- maximum distance to detect sheep
+POSITIONING_DISTANCE = 30    -- optimal distance behind sheep
+COLLISION_THRESHOLD = 0.3    -- proximity sensor threshold for obstacles
+
+-- State variables
+shepherd_state = EXPLORE
+target_sheep = nil
+sheep_last_seen = 0
 is_avoiding = false
 avoiding_steps = 0
 
-function random_walk()
-   if not is_avoiding then
-   	obstacle = false
-   	for x = 1, 4 do
-      	if robot.proximity[x].value > 0 then
-         	obstacle = true
-      	end
-   	end
-   	for x = 20, 24 do
-      	if robot.proximity[x].value > 0 then
-         	obstacle = true
-      	end
-   	end
-   	if obstacle == true then
-         is_avoiding = true
-      	avoiding_steps = robot.random.uniform_int(5, 25)
-   	else
-      	robot.wheels.set_velocity(20,20)
-   	end
-   else
-       if avoiding_steps > 0 then
-      	robot.wheels.set_velocity(-5,5)
-         avoiding_steps = avoiding_steps - 1
-       else
-			is_avoiding = false
-       end
-   end
+--[[ Detects sheep robots using the omnidirectional camera.
+     Returns the closest sheep with its distance, angle, and color. ]]
+function detect_sheep()
+    local closest_sheep = nil
+    local closest_distance = math.huge
+    
+    for i = 1, #robot.colored_blob_omnidirectional_camera do
+        local blob = robot.colored_blob_omnidirectional_camera[i]
+        -- Check if this is a yellow LED (sheep marker)
+        if blob.color.red == 255 and blob.color.green == 255 and blob.color.blue == 0 then
+            if blob.distance < closest_distance and blob.distance < SHEEP_DETECTION_RANGE then
+                closest_distance = blob.distance
+                closest_sheep = {
+                    distance = blob.distance,
+                    angle = blob.angle,
+                    color = table.copy(blob.color)
+                }
+            end
+        end
+    end
+    
+    return closest_sheep
 end
 
-function check_for_red_led()
-	closest_distance = math.huge
-	closest_angle = 0
-	red_led_found = false
-	for x = 1, #robot.colored_blob_omnidirectional_camera
-	do
-		if robot.colored_blob_omnidirectional_camera[x].color.red == 255 and robot.colored_blob_omnidirectional_camera[x].color.green == 0 and robot.colored_blob_omnidirectional_camera[x].color.blue == 0
-		then
-			red_led_found = true
-			if robot.colored_blob_omnidirectional_camera[x].distance < closest_distance
-			then
-				closest_distance = robot.colored_blob_omnidirectional_camera[x].distance
-				closest_angle = robot.colored_blob_omnidirectional_camera[x].angle
-			end
-		end
-	end
-	return red_led_found
+--[[ Detects the red LED target using the omnidirectional camera.
+     Returns target information if found. ]]
+function detect_red_target()
+    local target = nil
+    local closest_distance = math.huge
+    
+    for i = 1, #robot.colored_blob_omnidirectional_camera do
+        local blob = robot.colored_blob_omnidirectional_camera[i]
+        -- Check if this is a red LED (target marker)
+        if blob.color.red == 255 and blob.color.green == 0 and blob.color.blue == 0 then
+            if blob.distance < closest_distance then
+                closest_distance = blob.distance
+                target = {
+                    distance = blob.distance,
+                    angle = blob.angle
+                }
+            end
+        end
+    end
+    
+    return target
 end
 
-function explore()
-    robot.leds.set_all_colors("blue")
-    random_walk()
-    if check_for_red_led() then
-        shepherd_state = WALK_AWAY
-	end
+--[[ Checks for obstacles using proximity sensors.
+     Returns true if collision avoidance is needed. ]]
+function check_obstacles()
+    for i = 1, 24 do
+        if robot.proximity[i].value > COLLISION_THRESHOLD then
+            return true
+        end
+    end
+    return false
 end
 
-function walk_away()
-    robot.leds.set_all_colors("black")
-    random_walk()
+--[[ Implements obstacle avoidance using proximity sensors.
+     Uses potential field approach to avoid obstacles. ]]
+function avoid_obstacles()
+    local avoidance_vector = {x = 0, y = 0}
+    
+    -- Sum all proximity vectors (repulsive forces)
+    for i = 1, 24 do
+        if robot.proximity[i].value > 0 then
+            local force_magnitude = robot.proximity[i].value
+            local obstacle_angle = robot.proximity[i].angle
+            
+            -- Create repulsive force away from obstacle
+            avoidance_vector.x = avoidance_vector.x - force_magnitude * math.cos(obstacle_angle)
+            avoidance_vector.y = avoidance_vector.y - force_magnitude * math.sin(obstacle_angle)
+        end
+    end
+    
+    -- Calculate movement angle and apply it
+    local avoidance_angle = math.atan2(avoidance_vector.y, avoidance_vector.x)
+    local speeds = ComputeSpeedFromAngle(avoidance_angle, SHEPHERD_MAX_SPEED * 0.7)
+    robot.wheels.set_velocity(speeds[1], speeds[2])
+end
+
+--[[ Random exploration behavior when no sheep are detected. ]]
+function explore_arena()
+    if not is_avoiding then
+        local obstacle = false
+        -- Check front sensors for obstacles
+        for i = 1, 4 do
+            if robot.proximity[i].value > COLLISION_THRESHOLD then
+                obstacle = true
+                break
+            end
+        end
+        for i = 20, 24 do
+            if robot.proximity[i].value > COLLISION_THRESHOLD then
+                obstacle = true
+                break
+            end
+        end
+        
+        if obstacle then
+            is_avoiding = true
+            avoiding_steps = robot.random.uniform_int(10, 30)
+        else
+            robot.wheels.set_velocity(SHEPHERD_MAX_SPEED, SHEPHERD_MAX_SPEED)
+        end
+    else
+        if avoiding_steps > 0 then
+            -- Turn to avoid obstacle
+            robot.wheels.set_velocity(-SHEPHERD_MAX_SPEED * 0.3, SHEPHERD_MAX_SPEED * 0.3)
+            avoiding_steps = avoiding_steps - 1
+        else
+            is_avoiding = false
+        end
+    end
+end
+
+--[[ Calculates the desired position behind the sheep relative to the target.
+     Returns the angle to move to get behind the sheep. ]]
+function calculate_herding_position(sheep, target)
+    if not target then
+        -- If no target visible, position behind sheep in its current direction
+        return sheep.angle + math.pi
+    end
+    
+    -- Calculate angle from sheep to target
+    local sheep_to_target_angle = target.angle
+    
+    -- Position behind sheep, opposite to target direction
+    local desired_angle = sheep_to_target_angle + math.pi
+    
+    -- Calculate angle to reach desired position
+    local position_angle = sheep.angle + (desired_angle - sheep.angle) * 0.3
+    
+    return position_angle
+end
+
+--[[ Main herding behavior - positions behind sheep and guides it toward target. ]]
+function herd_sheep(sheep, target)
+    if sheep.distance > POSITIONING_DISTANCE * 1.5 then
+        -- Too far from sheep, approach it
+        local speeds = ComputeSpeedFromAngle(sheep.angle, SHEPHERD_MAX_SPEED)
+        robot.wheels.set_velocity(speeds[1], speeds[2])
+        robot.leds.set_all_colors("blue")  -- Blue LED to repel if sheep turns around
+        
+    elseif sheep.distance < POSITIONING_DISTANCE * 0.7 then
+        -- Too close to sheep, back away slightly
+        local back_angle = sheep.angle + math.pi
+        local speeds = ComputeSpeedFromAngle(back_angle, SHEPHERD_MAX_SPEED * 0.5)
+        robot.wheels.set_velocity(speeds[1], speeds[2])
+        robot.leds.set_all_colors("green")  -- Green LED to attract sheep toward target
+        
+    else
+        -- At good distance, position behind sheep relative to target
+        local herding_angle = calculate_herding_position(sheep, target)
+        local speeds = ComputeSpeedFromAngle(herding_angle, SHEPHERD_MAX_SPEED * 0.8)
+        robot.wheels.set_velocity(speeds[1], speeds[2])
+        
+        -- Choose LED color based on desired sheep movement
+        if target and sheep.distance < 50 then
+            robot.leds.set_all_colors("green")  -- Attract sheep toward target
+        else
+            robot.leds.set_all_colors("blue")   -- General herding with blue LED
+        end
+    end
 end
 ------------------------------------------------------------------
 
- --[[ Control function function for the GroundBot robots. ]]
+ --[[ Main control function for shepherd robots.
+      Implements a state machine with the following behaviors:
+      1. EXPLORE: Random walk to find sheep
+      2. POSITION_BEHIND_SHEEP: Move to optimal herding position
+      3. HERD_SHEEP: Guide sheep toward the red LED target
+      4. AVOID_COLLISION: Emergency obstacle avoidance ]]
 function shepherd_control()
-     -- Insert your code here, after this line
-     if shepherd_state == EXPLORE then
-         explore()
-     elseif  shepherd_state == WALK_AWAY then
-         walk_away()
-     else
-         robot.wheels.set_velocity(0,0)
-     end
+    -- SENSE: Gather sensor information
+    local sheep = detect_sheep()
+    local target = detect_red_target()
+    local obstacles_detected = check_obstacles()
+    
+    -- Emergency collision avoidance takes highest priority
+    if obstacles_detected and shepherd_state ~= AVOID_COLLISION then
+        shepherd_state = AVOID_COLLISION
+    end
+    
+    -- THINK: State machine logic
+    if shepherd_state == EXPLORE then
+        -- Look for sheep to herd
+        if sheep then
+            target_sheep = sheep
+            sheep_last_seen = robot.system.time_in_seconds
+            shepherd_state = POSITION_BEHIND_SHEEP
+        else
+            -- Continue exploring
+            robot.leds.set_all_colors("black")  -- No LED signal while exploring
+        end
+        
+    elseif shepherd_state == POSITION_BEHIND_SHEEP then
+        -- Move to optimal position behind detected sheep
+        if sheep then
+            target_sheep = sheep
+            sheep_last_seen = robot.system.time_in_seconds
+            
+            -- Check if we're in good herding position
+            if sheep.distance >= POSITIONING_DISTANCE * 0.7 and 
+               sheep.distance <= POSITIONING_DISTANCE * 1.5 then
+                shepherd_state = HERD_SHEEP
+            end
+        else
+            -- Lost sight of sheep
+            if robot.system.time_in_seconds - sheep_last_seen > 3.0 then
+                shepherd_state = EXPLORE
+                target_sheep = nil
+            end
+        end
+        
+    elseif shepherd_state == HERD_SHEEP then
+        -- Active herding of sheep toward target
+        if sheep then
+            target_sheep = sheep
+            sheep_last_seen = robot.system.time_in_seconds
+            
+            -- Check if sheep is too far and we need to reposition
+            if sheep.distance > POSITIONING_DISTANCE * 2.0 then
+                shepherd_state = POSITION_BEHIND_SHEEP
+            end
+        else
+            -- Lost sight of sheep
+            if robot.system.time_in_seconds - sheep_last_seen > 2.0 then
+                shepherd_state = EXPLORE
+                target_sheep = nil
+            end
+        end
+        
+    elseif shepherd_state == AVOID_COLLISION then
+        -- Emergency state - avoid obstacles
+        if not obstacles_detected then
+            -- Return to previous behavior
+            if target_sheep then
+                shepherd_state = POSITION_BEHIND_SHEEP
+            else
+                shepherd_state = EXPLORE
+            end
+        end
+    end
+    
+    -- ACT: Execute behavior based on current state
+    if shepherd_state == EXPLORE then
+        explore_arena()
+        
+    elseif shepherd_state == POSITION_BEHIND_SHEEP then
+        if target_sheep then
+            -- Move toward sheep to get in herding position
+            local approach_angle = target_sheep.angle
+            local speeds = ComputeSpeedFromAngle(approach_angle, SHEPHERD_MAX_SPEED)
+            robot.wheels.set_velocity(speeds[1], speeds[2])
+            robot.leds.set_all_colors("blue")  -- Blue LED for general herding
+        else
+            shepherd_state = EXPLORE
+        end
+        
+    elseif shepherd_state == HERD_SHEEP then
+        if target_sheep then
+            herd_sheep(target_sheep, target)
+        else
+            shepherd_state = EXPLORE
+        end
+        
+    elseif shepherd_state == AVOID_COLLISION then
+        avoid_obstacles()
+        robot.leds.set_all_colors("red")  -- Red LED to signal emergency avoidance
+        
+    else
+        -- Default: stop and reset to explore
+        robot.wheels.set_velocity(0, 0)
+        robot.leds.set_all_colors("black")
+        shepherd_state = EXPLORE
+    end
 end
 
 --[[ This function checks if the robot type, based on its ID. 
@@ -249,7 +467,14 @@ end
 function init()
    -- special logic to enable multi-robot opeation - do not alter this part!
    check_robot_type()
-   -- put your code here, after this line
+   -- Initialize shepherd state variables
+   if not is_sheep then
+       shepherd_state = EXPLORE
+       target_sheep = nil
+       sheep_last_seen = 0
+       is_avoiding = false
+       avoiding_steps = 0
+   end
 end
 
 --[[ This function is executed at each time step
@@ -272,8 +497,14 @@ end
 function reset()
     -- special logic to enable multi-robot opeation - do not alter this part!
     check_robot_type()
-   -- put your code here, after this line
-
+    -- Reset shepherd state variables
+    if not is_sheep then
+        shepherd_state = EXPLORE
+        target_sheep = nil
+        sheep_last_seen = 0
+        is_avoiding = false
+        avoiding_steps = 0
+    end
 end
 
 --[[ This function is executed only once, when the robot is removed

@@ -150,7 +150,136 @@ end
 
  --[[ Control function function for the shepherd robots. ]]
 function shepherd_control()
-
+    -- Constants for shepherd behavior
+    local SHEPHERD_MAX_SPEED = 15
+    local TARGET_AREA = {min_x = -3.75, max_x = -1.25, min_y = -3.75, max_y = -1.25}
+    local SHEEP_DETECTION_RANGE = 150  -- Range for detecting sheep
+    local COMMUNICATION_RANGE = 125    -- Range for shepherd communication
+    local WALL_AVOIDANCE_THRESHOLD = 0.3
+    
+    -- Initialize movement vector
+    local movement_vector = {x = 0, y = 0}
+    local sheep_detected = false
+    local sheep_positions = {}
+    
+    -- 1. SENSE: Detect sheep using omnidirectional camera
+    for i = 1, #robot.colored_blob_omnidirectional_camera do
+        local blob = robot.colored_blob_omnidirectional_camera[i]
+        -- Detect sheep by their yellow LEDs (set in check_robot_type function)
+        if blob.color.red == 255 and blob.color.green == 255 and blob.color.blue == 0 and 
+           blob.distance < SHEEP_DETECTION_RANGE then
+            sheep_detected = true
+            -- Convert polar coordinates to Cartesian relative to robot
+            local sheep_x = blob.distance * math.cos(blob.angle)
+            local sheep_y = blob.distance * math.sin(blob.angle)
+            table.insert(sheep_positions, {x = sheep_x, y = sheep_y, distance = blob.distance, angle = blob.angle})
+        end
+    end
+    
+    -- 2. COMMUNICATION: Share information with other shepherds
+    local other_shepherds = {}
+    for i = 1, #robot.range_and_bearing do
+        local msg = robot.range_and_bearing[i]
+        if msg.range < COMMUNICATION_RANGE then
+            -- Store information about other shepherds' positions
+            table.insert(other_shepherds, {
+                range = msg.range,
+                bearing = msg.bearing
+            })
+        end
+    end
+    
+    -- 3. BEHAVIOR LOGIC
+    if sheep_detected and #sheep_positions > 0 then
+        -- Find the closest sheep
+        local closest_sheep = sheep_positions[1]
+        for _, sheep in ipairs(sheep_positions) do
+            if sheep.distance < closest_sheep.distance then
+                closest_sheep = sheep
+            end
+        end
+        
+        -- Calculate centroid of detected sheep
+        local sheep_centroid = {x = 0, y = 0}
+        for _, sheep in ipairs(sheep_positions) do
+            sheep_centroid.x = sheep_centroid.x + sheep.x
+            sheep_centroid.y = sheep_centroid.y + sheep.y
+        end
+        sheep_centroid.x = sheep_centroid.x / #sheep_positions
+        sheep_centroid.y = sheep_centroid.y / #sheep_positions
+        
+        -- Determine target direction (towards the red LED area)
+        local target_direction = math.atan2(TARGET_AREA.min_y, TARGET_AREA.min_x)
+        
+        -- Calculate desired shepherd position (behind sheep relative to target)
+        local behind_offset = 80  -- Distance to stay behind sheep
+        local desired_x = sheep_centroid.x - behind_offset * math.cos(target_direction)
+        local desired_y = sheep_centroid.y - behind_offset * math.sin(target_direction)
+        
+        -- Move towards desired position behind sheep
+        movement_vector.x = desired_x
+        movement_vector.y = desired_y
+        
+        -- LED Strategy:
+        -- Use green LED to attract sheep towards target when shepherd is in correct position
+        local distance_to_sheep = math.sqrt(sheep_centroid.x^2 + sheep_centroid.y^2)
+        
+        if distance_to_sheep < 100 then
+            -- Close to sheep: use green LED to attract them towards target
+            robot.leds.set_all_colors("green")
+        else
+            -- Far from sheep: use blue LED as default (non-attractive)
+            robot.leds.set_all_colors("blue")
+        end
+        
+    else
+        -- No sheep detected: search behavior
+        -- Move in a spiral or random walk pattern to find sheep
+        local search_angle = (robot.id:byte() + robot.time) * 0.1  -- Different pattern for each robot
+        movement_vector.x = 50 * math.cos(search_angle)
+        movement_vector.y = 50 * math.sin(search_angle)
+        robot.leds.set_all_colors("blue")  -- Default color when searching
+    end
+    
+    -- 4. OBSTACLE/WALL AVOIDANCE
+    local obstacle_vector = {x = 0, y = 0}
+    for i = 1, 24 do 
+        if robot.proximity[i].value > WALL_AVOIDANCE_THRESHOLD then
+            -- Calculate repulsion vector from obstacles
+            local repulsion_x = -robot.proximity[i].value * math.cos(robot.proximity[i].angle)
+            local repulsion_y = -robot.proximity[i].value * math.sin(robot.proximity[i].angle)
+            obstacle_vector.x = obstacle_vector.x + repulsion_x
+            obstacle_vector.y = obstacle_vector.y + repulsion_y
+        end
+    end
+    
+    -- Combine movement and obstacle avoidance
+    movement_vector.x = movement_vector.x + obstacle_vector.x * 100
+    movement_vector.y = movement_vector.y + obstacle_vector.y * 100
+    
+    -- 5. COORDINATION: Avoid clustering with other shepherds
+    for _, other in ipairs(other_shepherds) do
+        if other.range < 60 then  -- Too close to another shepherd
+            -- Add repulsion from other shepherd
+            local repulsion_x = -30 * math.cos(other.bearing)
+            local repulsion_y = -30 * math.sin(other.bearing)
+            movement_vector.x = movement_vector.x + repulsion_x
+            movement_vector.y = movement_vector.y + repulsion_y
+        end
+    end
+    
+    -- 6. ACT: Convert movement vector to wheel speeds
+    local movement_length = math.sqrt(movement_vector.x^2 + movement_vector.y^2)
+    if movement_length > 0 then
+        local movement_angle = math.atan2(movement_vector.y, movement_vector.x)
+        local speeds = ComputeSpeedFromAngle(movement_angle, SHEPHERD_MAX_SPEED)
+        robot.wheels.set_velocity(speeds[1], speeds[2])
+    else
+        robot.wheels.set_velocity(0, 0)
+    end
+    
+    -- 7. BROADCAST: Send position information to other shepherds
+    robot.range_and_bearing.set_data(1, math.floor(robot.id:byte()))  -- Simple ID broadcast
 end
 
 --[[ This function checks if the robot type, based on its ID. 
@@ -159,10 +288,10 @@ function check_robot_type()
     -- special logic to enable multi-robot opeation - do not alter this part!
     if string.find(robot.id, "sheep") ~= nil then
         is_sheep    = true
-        led_color = "yellow"
+        led_color = "yellow"  -- Sheep have yellow LEDs for easy detection by shepherds
     else
     	is_sheep = false
-    	led_color = "blue"
+    	led_color = "blue"   -- Shepherds start with blue LEDs (will change during operation)
     end
     -- this line is to help you with visualizing the roles in the swarm
     -- comment or remove this line before performing your experiments
