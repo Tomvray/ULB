@@ -28,8 +28,8 @@ run_experiment() {
                 echo "Running $algorithm on $size jobs..."
                 
                 for instance in $instances; do
-                    for (run=1; run<=$RUNS; run++); do
-                        seed=$((12345 + run))
+                    for ((i=1; i<=$RUNS; i++)); do
+                        seed=$((12345 + i))
                         ./pfsp $instance ii $rule $neigh $init --seed $seed
                     done
                 done

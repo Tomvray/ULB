@@ -144,7 +144,7 @@ function get_item_blob()
     local closest_available_item = nil
     for _, blob in ipairs(robot.colored_blob_omnidirectional_camera) do
         log("color red" .. blob.color.red)
-        if blob.color.red > ITEM_THRESHOLD then
+        if blob.color.red > ITEM_THRESHOLD and is_item_claimed(blob.)  then
             return blob
         end
     end
